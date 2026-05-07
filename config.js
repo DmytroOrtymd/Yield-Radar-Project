@@ -16,7 +16,7 @@ var platforms = [
     {
         "name": "Neverless",
         "apy": 2.42,
-        "url": "https://neverless.com/", // Updated URL
+        "url": "https://neverless.com/referral?code=fortunecaptain/", // Updated URL
         "factors": {
              "longevity": 2,     
             "reserves": 1,     
