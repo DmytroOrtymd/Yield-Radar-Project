@@ -29,7 +29,7 @@ var platforms = [
 {
         "name": "Bybit",
         "apy": 0.3,
-        "url": "https://neverless.com/", // Updated URL
+        "url": "https://nil/", // Updated URL
         "factors": {
              "longevity": 7,     
             "reserves": 9,     
