@@ -270,51 +270,65 @@
 
 <script>
     let btcPrice = 70000;
+    let geckoScores = {}; // { geckoId: trust_score (1-10) }
 
     function getWeightedRisk(f) {
-        if (!f) return 50; 
-        
-        // Revised weights for 6 parameters (Sum = 1.0)
-        const weights = { 
-            lon: 0.15, // Longevity
-            res: 0.15, // Proof of Reserves
-            col: 0.20, // Collateral
-            aud: 0.15, // Third Party Audit
-            gap: 0.20, // Yield Gap
-            src: 0.15  // Source of Yield
-        };
-        
+        if (!f) return 50;
+        const weights = { lon: 0.15, res: 0.15, col: 0.20, aud: 0.15, gap: 0.20, src: 0.15 };
         let score = (f.longevity * 10 * weights.lon) +
-                    (f.reserves * 10 * weights.res) +
-                    (f.collateral * 10 * weights.col) +
-                    (f.audit * 10 * weights.aud) +
-                    (f.yieldGap * 10 * weights.gap) +
-                    (f.source * 10 * weights.src);
-                    
+                    (f.reserves  * 10 * weights.res) +
+                    (f.collateral* 10 * weights.col) +
+                    (f.audit     * 10 * weights.aud) +
+                    (f.yieldGap  * 10 * weights.gap) +
+                    (f.source    * 10 * weights.src);
         return Math.round(score) || 0;
     }
 
+    function getSafetyScore(p) {
+        // Если есть geckoId и мы получили данные — используем CoinGecko trust_score
+        if (p.geckoId && geckoScores[p.geckoId] != null) {
+            return { score: geckoScores[p.geckoId] * 10, source: "CoinGecko" };
+        }
+        // Fallback — расчётный скор
+        return { score: getWeightedRisk(p.factors), source: "Internal" };
+    }
+
     async function start() {
+        // 1. Fetch BTC price
         try {
             const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
             const data = await res.json();
-            if(data.bitcoin.usd) {
+            if (data.bitcoin?.usd) {
                 btcPrice = data.bitcoin.usd;
                 document.getElementById('btcPriceDisplay').innerText = "$" + btcPrice.toLocaleString();
             }
         } catch (e) {
             document.getElementById('btcPriceDisplay').innerText = "$" + btcPrice.toLocaleString() + " (Fixed)";
         }
+
+        // 2. Fetch CoinGecko exchange trust scores
+        try {
+            const res = await fetch('https://api.coingecko.com/api/v3/exchanges?per_page=250&page=1');
+            const list = await res.json();
+            list.forEach(ex => {
+                if (ex.trust_score != null) {
+                    geckoScores[ex.id] = ex.trust_score; // 1–10
+                }
+            });
+        } catch (e) {
+            console.warn("CoinGecko exchanges fetch failed, using internal scores.", e);
+        }
+
         renderTable();
     }
 
     function renderTable() {
         const tbody = document.getElementById('yieldBody');
-        const amount = document.getElementById('btcAmount').value || 0;
+        const amount = parseFloat(document.getElementById('btcAmount').value) || 0;
         const sortType = document.getElementById('sortBy').value;
-        
+
         if (typeof platforms === 'undefined') {
-            tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; padding: 40px;'>config.js not found...</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 40px;'>config.js not found...</td></tr>";
             return;
         }
 
@@ -323,31 +337,39 @@
         if (sortType === "apy-high") {
             listToSort.sort((a, b) => b.apy - a.apy);
         } else if (sortType === "risk-score") {
-            listToSort.sort((a, b) => getWeightedRisk(b.factors) - getWeightedRisk(a.factors));
+            listToSort.sort((a, b) => getSafetyScore(b).score - getSafetyScore(a).score);
         }
 
         tbody.innerHTML = "";
         listToSort.forEach(p => {
             const mBtc = (amount * (p.apy / 100)) / 12;
             const mUsd = mBtc * btcPrice;
-            const score = getWeightedRisk(p.factors);
+            const { score, source } = getSafetyScore(p);
             let rClass = score > 80 ? "risk-low" : (score > 60 ? "risk-mid" : "risk-high");
+            const sourceLabel = source === "CoinGecko"
+                ? `<span style="font-size:0.65rem; color: var(--text-dim); display:block; margin-top:3px;">via CoinGecko</span>`
+                : `<span style="font-size:0.65rem; color: var(--text-dim); display:block; margin-top:3px;">Internal</span>`;
 
             tbody.innerHTML += `
                 <tr>
                     <td style="font-weight: 700; color: var(--text-main);">${p.name}</td>
                     <td style="color: var(--accent); font-weight: 800; font-size: 1.1rem;">${p.apy}%</td>
+                    <td style="color: var(--text-dim); font-size: 0.9rem;">${p.depositType || "—"}</td>
                     <td>
                         <div class="risk-container">
                             <span class="risk-badge ${rClass}">${score}/100</span>
+                            ${sourceLabel}
                             <div class="tooltip">
                                 <strong>Safety Breakdown:</strong><br>
-                                Longevity: ${p.factors.longevity}/10<br>
-                                Reserves (PoR): ${p.factors.reserves}/10<br>
-                                Collateral: ${p.factors.collateral}/10<br>
-                                3rd Party Audit: ${p.factors.audit}/10<br>
-                                Yield Gap: ${p.factors.yieldGap}/10<br>
-                                Source: ${p.factors.source}/10
+                                ${source === "CoinGecko"
+                                    ? `CoinGecko Trust Score: ${geckoScores[p.geckoId]}/10`
+                                    : `Longevity: ${p.factors.longevity}/10<br>
+                                       Reserves (PoR): ${p.factors.reserves}/10<br>
+                                       Collateral: ${p.factors.collateral}/10<br>
+                                       3rd Party Audit: ${p.factors.audit}/10<br>
+                                       Yield Gap: ${p.factors.yieldGap}/10<br>
+                                       Source: ${p.factors.source}/10`
+                                }
                             </div>
                         </div>
                     </td>
@@ -362,7 +384,9 @@
             `;
         });
     }
+
     start();
 </script>
+
 </body>
 </html>
