@@ -514,7 +514,6 @@ footer {
 
     /* ── STATE ─────────────────────────────────────────── */
     let btcPrice  = 70000;
-    let geckoData = {};   // { geckoId: { trust_score, image } }
     let isLoading = true;
 
     /* ── HELPERS ───────────────────────────────────────── */
@@ -550,7 +549,6 @@ footer {
     }
 
     function getPlatformLogo(p) {
-        if (p.geckoId && geckoData[p.geckoId]?.image) return geckoData[p.geckoId].image;
         const domain = getDomain(p.url);
         return domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
     }
@@ -569,9 +567,6 @@ footer {
     }
 
     function getSafetyScore(p) {
-        if (p.geckoId && geckoData[p.geckoId]?.trust_score != null) {
-            return { score: geckoData[p.geckoId].trust_score * 10, source: 'CoinGecko' };
-        }
         return { score: getWeightedRisk(p.factors), source: 'Internal' };
     }
 
@@ -658,7 +653,7 @@ footer {
         list.forEach((p, i) => {
             const yBtc = getYield(amount, p.apy, period);
             const yUsd = yBtc * btcPrice;
-            const { score, source } = getSafetyScore(p);
+            const { score } = getSafetyScore(p);
             const rClass = score > 80 ? 'risk-low' : score > 60 ? 'risk-mid' : 'risk-high';
 
             const logoUrl = getPlatformLogo(p);
@@ -666,14 +661,7 @@ footer {
                 ? `<img src="${logoUrl}" alt="${p.name}" class="platform-logo" onerror="this.replaceWith(makePlaceholder('${p.name.charAt(0)}'))">`
                 : `<div class="platform-logo-placeholder">${p.name.charAt(0)}</div>`;
 
-            const tooltipContent = source === 'CoinGecko'
-                ? `CoinGecko Trust Score: ${geckoData[p.geckoId]?.trust_score}/10`
-                : `Longevity: ${p.factors?.longevity}/10<br>
-                   Reserves: ${p.factors?.reserves}/10<br>
-                   Collateral: ${p.factors?.collateral}/10<br>
-                   Audit: ${p.factors?.audit}/10<br>
-                   Yield Gap: ${p.factors?.yieldGap}/10<br>
-                   Source: ${p.factors?.source}/10`;
+            const tooltipContent = `Longevity: ${p.factors?.longevity}/10<br>Reserves: ${p.factors?.reserves}/10<br>Collateral: ${p.factors?.collateral}/10<br>Audit: ${p.factors?.audit}/10<br>Yield Gap: ${p.factors?.yieldGap}/10<br>Source: ${p.factors?.source}/10`;
 
             const decimals = period === 'yearly' ? 4 : 6;
 
@@ -692,7 +680,6 @@ footer {
                 <td>
                     <div class="risk-container">
                         <span class="risk-badge ${rClass}">${score}/100</span>
-                        <span class="source-label">${source === 'CoinGecko' ? 'via CoinGecko' : 'Internal'}</span>
                         <div class="tooltip"><strong>Safety Breakdown:</strong><br>${tooltipContent}</div>
                     </div>
                 </td>
@@ -714,20 +701,10 @@ footer {
         return div;
     }
 
-    /* ── FETCH ─────────────────────────────────────────── */
-    async function fetchExchangeData(geckoId) {
-        const res = await fetch(`https://api.coingecko.com/api/v3/exchanges/${geckoId}`);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const d = await res.json();
-        return { trust_score: d.trust_score ?? null, image: d.image || null };
-    }
-
     async function start() {
         setDot('loading');
         const count = typeof platforms !== 'undefined' ? platforms.length : 4;
         showSkeleton(count);
-
-        let errors = [];
 
         // BTC price
         try {
@@ -738,31 +715,13 @@ footer {
                 btcPrice = data.bitcoin.usd;
                 setPriceDisplay(btcPrice);
             }
+            hideError();
         } catch (e) {
-            errors.push('BTC price');
+            showError('BTC price unavailable — showing cached value.');
             document.getElementById('btcPriceDisplay').textContent =
                 '$' + btcPrice.toLocaleString() + ' (cached)';
             document.getElementById('stickyPrice').textContent =
                 '$' + btcPrice.toLocaleString();
-        }
-
-        // Exchange trust scores + logos
-        if (typeof platforms !== 'undefined') {
-            const ids = [...new Set(platforms.filter(p => p.geckoId).map(p => p.geckoId))];
-            for (const id of ids) {
-                try {
-                    geckoData[id] = await fetchExchangeData(id);
-                } catch (e) {
-                    errors.push(id);
-                }
-                await new Promise(r => setTimeout(r, 700));
-            }
-        }
-
-        if (errors.length) {
-            showError('Some data couldn\'t load from CoinGecko (' + errors.join(', ') + ') — showing internal scores where needed.');
-        } else {
-            hideError();
         }
 
         isLoading = false;
