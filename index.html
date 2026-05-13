@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTC Yield Radar | Professional Dashboard</title>
+    <title>BTC RADAR | Professional Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
@@ -21,7 +21,8 @@
     --risk-low: #16a34a;
     --risk-mid: #ca8a04;
     --risk-high: #dc2626;
-    --border: #e2e8f0;
+    --border: #cbd5e1;
+    --border-col: #e2e8f0;
     --skeleton-1: #f1f5f9;
     --skeleton-2: #e2e8f0;
     --sticky-bg: rgba(255,255,255,0.92);
@@ -35,6 +36,7 @@
     --text-main: #f1f5f9;
     --text-dim: #94a3b8;
     --border: #1e293b;
+    --border-col: #1e293b;
     --accent-glow: rgba(245,158,11,0.08);
     --skeleton-1: #1e293b;
     --skeleton-2: #253349;
@@ -120,15 +122,15 @@ h1 {
 /* ─── LIVE TICKER ────────────────────────────── */
 .live-ticker {
     font-family: 'DM Mono', monospace;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
+    background: var(--accent);
+    border: 1px solid var(--accent);
     padding: 10px 22px;
     border-radius: 50px;
     display: inline-flex;
     align-items: center;
     gap: 12px;
     margin-top: 24px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 20px rgba(245,158,11,0.35);
 }
 .dot {
     height: 8px; width: 8px;
@@ -221,13 +223,17 @@ th {
     text-align: left;
     font-weight: 600;
     border-bottom: 1px solid var(--border);
-}
+        border-right: 1px solid var(--border-col);
+    }
+    th:last-child { border-right: none; }
 td {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border-col);
     text-align: left;
     vertical-align: middle;
 }
+td:last-child { border-right: none; }
 tr:last-child td { border-bottom: none; }
 tbody tr { transition: background 0.15s; }
 tbody tr:hover { background: var(--accent-glow); }
@@ -302,20 +308,22 @@ tbody tr:hover { background: var(--accent-glow); }
 
 /* ─── EARN BUTTON ────────────────────────────── */
 .btn-visit {
-    background: var(--accent);
+    background: #f59e0b;
     color: #000;
     text-decoration: none;
     padding: 9px 18px;
     border-radius: 10px;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 0.85rem;
     transition: transform 0.15s, box-shadow 0.15s;
     display: inline-block;
     white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.4);
 }
 .btn-visit:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+    background: #fbbf24;
+    box-shadow: 0 6px 20px rgba(245,158,11,0.55);
 }
 
 /* ─── SKELETON LOADER ────────────────────────── */
@@ -384,7 +392,7 @@ footer {
 <!-- ── STICKY BAR ───────────────────────────────────── -->
 
 <div class="sticky-bar" id="stickyBar">
-    <div class="sticky-logo"><i class="fab fa-bitcoin"></i> Yield Radar</div>
+    <div class="sticky-logo"><i class="fab fa-bitcoin"></i> BTC RADAR</div>
     <div>
         <span class="sticky-price-label">BTC</span>
         <span class="sticky-price-val" id="stickyPrice">—</span>
@@ -406,12 +414,12 @@ footer {
             <i id="themeIconMain" class="fas fa-moon"></i>
         </button>
     </div>
-    <h1><i class="fab fa-bitcoin"></i> Yield Radar</h1>
+    <h1><i class="fab fa-bitcoin"></i> BTC RADAR</h1>
     <p class="page-description">Real-time monitoring of the crypto interest market. Maximize your holdings by comparing rates across industry leaders.</p>
     <div class="live-ticker">
         <div class="dot loading" id="statusDot"></div>
-        <span style="color:var(--text-dim)">BTC PRICE:</span>
-        <span id="btcPriceDisplay" style="color:var(--text-main);font-weight:700;font-family:'DM Mono',monospace;">Loading…</span>
+        <span style="color:rgba(0,0,0,0.6);font-weight:600;">BTC PRICE:</span>
+        <span id="btcPriceDisplay" style="color:#000;font-weight:700;font-family:'DM Mono',monospace;">Loading…</span>
     </div>
     <div class="last-updated" id="lastUpdated"></div>
 </header>
@@ -475,7 +483,7 @@ footer {
 
 <footer>
     <p><strong>Disclaimer:</strong> For educational and informational purposes only. APYs subject to change. Cryptocurrency investments involve significant risk. Always do your own research (DYOR) before depositing funds.</p>
-    <p style="margin-top:10px;opacity:0.55;">&copy; 2026 BTC Yield Radar &nbsp;·&nbsp; Live data via CoinGecko.</p>
+    <p style="margin-top:10px;opacity:0.55;">&copy; 2026 BTC RADAR &nbsp;·&nbsp; Live data via CoinGecko.</p>
 </footer>
 
 </div>
@@ -490,20 +498,6 @@ footer {
 //   yieldGap    — how sustainable the APY is vs market rate
 //   source      — clarity of where the yield comes from
 var platforms = [
-  {
-    "name": "WhiteBIT",
-    "apy": 11.52,
-    "depositType": "Fixed",
-    "url": "https://whitebit.com/referral/761864d2-aeb6-4a07-9543-7a65dd0eef8d",
-    "factors": {
-      "longevity":   6,
-      "reserves":    5,
-      "collateral": 10,
-      "audit":       5,
-      "yieldGap":    3,
-      "source":      9
-    }
-  }, 
   {
     "name": "WhiteBIT",
     "apy": 1.37,
@@ -549,7 +543,7 @@ var platforms = [
   {
     "name": "Binance",
     "apy": 0.04,
-    "depositType": "Flexible",
+    "depositType": "Flexible / Fixed",
     "url": "https://www.binance.com/",
     "factors": {
       "longevity":   8,
