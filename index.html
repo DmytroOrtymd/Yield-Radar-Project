@@ -382,6 +382,65 @@ footer {
     .tooltip { width: 200px; left: auto; right: 0; transform: none; }
     footer { margin-top: 40px; padding: 20px 10px; }
 }
+/* ─── TABS ───────────────────────────────────────── */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.tab {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    color: var(--text-dim);
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    box-shadow: 0 4px 16px rgba(245,158,11,0.35);
+}
+
+/* ─── LTV BADGE ──────────────────────────────────── */
+.ltv-badge {
+    padding: 5px 11px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    display: inline-block;
+}
+.ltv-high { background: rgba(22,163,74,0.12);  color: var(--risk-low); }
+.ltv-mid  { background: rgba(202,138,4,0.12);  color: var(--risk-mid); }
+.ltv-low  { background: rgba(220,38,38,0.12);  color: var(--risk-high); }
+
+/* ─── LOAN BUTTON ────────────────────────────────── */
+.btn-loan {
+    background: #e85d5d;
+    color: #fff;
+    text-decoration: none;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 0.85rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+    display: inline-block;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(232,93,93,0.35);
+}
+.btn-loan:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(232,93,93,0.5);
+}
 ```
 
 </style>
@@ -458,13 +517,25 @@ footer {
         <span class="calc-label">Sort By</span>
         <select id="sortBy" onchange="renderTable()">
             <option value="apy-high">Highest APY</option>
-            <option value="risk-score">Best Safety</option>
+            <option value="apy-low">Lowest APY</option>
         </select>
     </div>
 </div>
 
-<!-- ── TABLE ─────────────────────────────────────── -->
+<!-- ── TABS ──────────────────────────────────────────── -->
 
+<div class="tabs">
+    <button class="tab active" id="tabEarn" onclick="switchTab('earn')">
+        <i class="fas fa-coins"></i> BTC Earn
+    </button>
+    <button class="tab" id="tabLoans" onclick="switchTab('loans')">
+        <i class="fas fa-hand-holding-usd"></i> BTC Loans
+    </button>
+</div>
+
+<!-- ── EARN TABLE ─────────────────────────────────────── -->
+
+<div id="sectionEarn">
 <div class="table-card">
     <table>
         <thead>
@@ -472,13 +543,32 @@ footer {
                 <th>Platform</th>
                 <th>Annual APY</th>
                 <th>Type</th>
-                <th>Safety Score</th>
                 <th id="yieldHeader">Monthly Yield</th>
                 <th></th>
             </tr>
         </thead>
         <tbody id="yieldBody"></tbody>
     </table>
+</div>
+</div>
+
+<!-- ── LOANS TABLE ────────────────────────────────────── -->
+
+<div id="sectionLoans" style="display:none;">
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th>Loan Rate (APR)</th>
+                <th>Min Term</th>
+                <th>Max LTV</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="loansBody"></tbody>
+    </table>
+</div>
 </div>
 
 <footer>
@@ -628,23 +718,6 @@ var platforms = [
         return domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
     }
 
-    function getWeightedRisk(f) {
-        if (!f) return 50;
-        const w = { lon:0.15, res:0.15, col:0.20, aud:0.15, gap:0.20, src:0.15 };
-        return Math.round(
-            f.longevity  * 10 * w.lon +
-            f.reserves   * 10 * w.res +
-            f.collateral * 10 * w.col +
-            f.audit      * 10 * w.aud +
-            f.yieldGap   * 10 * w.gap +
-            f.source     * 10 * w.src
-        ) || 0;
-    }
-
-    function getSafetyScore(p) {
-        return { score: getWeightedRisk(p.factors), source: 'Internal' };
-    }
-
     function getYield(amount, apy, period) {
         if (period === 'daily')   return (amount * apy / 100) / 365;
         if (period === 'yearly')  return  amount * apy / 100;
@@ -667,7 +740,6 @@ var platforms = [
                 </div></td>
                 <td><span class="skeleton" style="width:55px;height:15px;border-radius:4px;"></span></td>
                 <td><span class="skeleton" style="width:65px;height:15px;border-radius:4px;"></span></td>
-                <td><span class="skeleton" style="width:60px;height:22px;border-radius:8px;"></span></td>
                 <td>
                     <span class="skeleton" style="width:105px;height:15px;border-radius:4px;display:block;margin-bottom:6px;"></span>
                     <span class="skeleton" style="width:80px;height:13px;border-radius:4px;"></span>
@@ -695,7 +767,7 @@ var platforms = [
         }
 
         if (typeof platforms === 'undefined') {
-            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
                 <i class="fas fa-exclamation-circle"></i>
                 config.js not found — check your file setup.
             </div></td></tr>`;
@@ -713,10 +785,10 @@ var platforms = [
 
         // Sort
         if (sortType === 'apy-high') list.sort((a,b) => b.apy - a.apy);
-        else                         list.sort((a,b) => getSafetyScore(b).score - getSafetyScore(a).score);
+        else                         list.sort((a,b) => a.apy - b.apy);
 
         if (list.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+            tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
                 <i class="fas fa-filter"></i>
                 No platforms match this filter.
             </div></td></tr>`;
@@ -728,15 +800,11 @@ var platforms = [
         list.forEach((p, i) => {
             const yBtc = getYield(amount, p.apy, period);
             const yUsd = yBtc * btcPrice;
-            const { score } = getSafetyScore(p);
-            const rClass = score > 80 ? 'risk-low' : score > 60 ? 'risk-mid' : 'risk-high';
 
             const logoUrl = getPlatformLogo(p);
             const logoEl  = logoUrl
                 ? `<img src="${logoUrl}" alt="${p.name}" class="platform-logo" onerror="this.replaceWith(makePlaceholder('${p.name.charAt(0)}'))">`
                 : `<div class="platform-logo-placeholder">${p.name.charAt(0)}</div>`;
-
-            const tooltipContent = `Longevity: ${p.factors?.longevity}/10<br>Reserves: ${p.factors?.reserves}/10<br>Collateral: ${p.factors?.collateral}/10<br>Audit: ${p.factors?.audit}/10<br>Yield Gap: ${p.factors?.yieldGap}/10<br>Source: ${p.factors?.source}/10`;
 
             const decimals = period === 'yearly' ? 4 : 6;
 
@@ -753,12 +821,6 @@ var platforms = [
                 <td style="color:var(--accent);font-weight:800;font-size:1.05rem;">${p.apy}%</td>
                 <td style="color:var(--text-dim);font-size:0.85rem;">${p.depositType || '—'}</td>
                 <td>
-                    <div class="risk-container">
-                        <span class="risk-badge ${rClass}">${score}/100</span>
-                        <div class="tooltip"><strong>Safety Breakdown:</strong><br>${tooltipContent}</div>
-                    </div>
-                </td>
-                <td>
                     <span class="yield-main">${yBtc.toFixed(decimals)} BTC</span>
                     <span class="yield-sub">≈ $${yUsd.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                 </td>
@@ -774,6 +836,83 @@ var platforms = [
         div.className = 'platform-logo-placeholder';
         div.textContent = letter;
         return div;
+    }
+
+    /* ── LOANS DATA ────────────────────────────────────── */
+    var loans = [
+        {
+            name: "Nexo",
+            loanRate: 6.9,
+            minTerm: "Flexible",
+            maxLTV: 50,
+            url: "https://nexo.com/"
+        },
+        {
+            name: "Ledn",
+            loanRate: 9.9,
+            minTerm: "12 months",
+            maxLTV: 50,
+            url: "https://ledn.io/"
+        },
+        {
+            name: "Unchained",
+            loanRate: 11.0,
+            minTerm: "3 months",
+            maxLTV: 40,
+            url: "https://unchained.com/"
+        },
+        {
+            name: "Coinbase",
+            loanRate: 8.0,
+            minTerm: "Flexible",
+            maxLTV: 40,
+            url: "https://www.coinbase.com/"
+        }
+    ];
+
+    /* ── RENDER LOANS ──────────────────────────────────── */
+    function renderLoans() {
+        const tbody = document.getElementById('loansBody');
+        const list  = [...loans].sort((a, b) => a.loanRate - b.loanRate);
+
+        tbody.innerHTML = '';
+        list.forEach((p, i) => {
+            const domain  = getDomain(p.url);
+            const logoUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
+            const logoEl  = logoUrl
+                ? `<img src="${logoUrl}" alt="${p.name}" class="platform-logo" onerror="this.replaceWith(makePlaceholder('${p.name.charAt(0)}'))">`
+                : `<div class="platform-logo-placeholder">${p.name.charAt(0)}</div>`;
+
+            const ltvClass = p.maxLTV >= 50 ? 'ltv-high' : p.maxLTV >= 40 ? 'ltv-mid' : 'ltv-low';
+
+            const row = document.createElement('tr');
+            row.className = 'row-anim';
+            row.style.animationDelay = `${i * 55}ms`;
+            row.innerHTML = `
+                <td>
+                    <div class="platform-cell">
+                        ${logoEl}
+                        <span style="font-weight:700;">${p.name}</span>
+                    </div>
+                </td>
+                <td style="color:#e85d5d;font-weight:800;font-size:1.05rem;">${p.loanRate}%</td>
+                <td style="color:var(--text-dim);font-size:0.85rem;">${p.minTerm}</td>
+                <td><span class="ltv-badge ${ltvClass}">${p.maxLTV}%</span></td>
+                <td style="text-align:right;">
+                    <a href="${p.url}" target="_blank" rel="noopener" class="btn-loan">Get Loan →</a>
+                </td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    /* ── TAB SWITCH ────────────────────────────────────── */
+    function switchTab(tab) {
+        const isEarn = tab === 'earn';
+        document.getElementById('sectionEarn').style.display  = isEarn ? '' : 'none';
+        document.getElementById('sectionLoans').style.display = isEarn ? 'none' : '';
+        document.getElementById('tabEarn').classList.toggle('active',  isEarn);
+        document.getElementById('tabLoans').classList.toggle('active', !isEarn);
+        if (!isEarn) renderLoans();
     }
 
     async function start() {
